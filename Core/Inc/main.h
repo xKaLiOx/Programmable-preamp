@@ -36,6 +36,12 @@ extern "C" {
 
 /* Exported types ------------------------------------------------------------*/
 /* USER CODE BEGIN ET */
+typedef enum
+{
+	CALIBRATION,
+	RUNNING,
+	SLEEP
+} FSM_MCU;
 
 /* USER CODE END ET */
 
