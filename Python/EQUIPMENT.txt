@@ -1,0 +1,2 @@
+SDG6022X SIGLENT generatorius
+HDO4204 RIGOL osciloskopas
