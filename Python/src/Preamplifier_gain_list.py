@@ -14,4 +14,4 @@ oscilloscope = rm.open_resource('USB0::0x1AB1::0x0610::HDO4A244801408::INSTR')
 print(generator.query('*IDN?'))
 print(oscilloscope.query('*IDN?'))
 
-oscilloscope.write
+oscilloscope.write(':STOP')
