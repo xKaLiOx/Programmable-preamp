@@ -1,2 +1,5 @@
 SDG6022X SIGLENT generatorius
 HDO4204 RIGOL osciloskopas
+
+main package:
+https://pyvisa.readthedocs.io/en/latest/
