@@ -4,8 +4,8 @@ import time
 import os
 import struct
 
+DirPath = "C:/Users/Arthur/Documents/Linas_B"
 def CreateFolder():
-    DirPath = "C:/Users/Arthur/Documents/Linas_B"
     try:
         os.mkdir(f"{DirPath}.\Measurement_data")
     except FileExistsError:

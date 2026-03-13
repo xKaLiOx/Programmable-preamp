@@ -6,8 +6,6 @@ import struct
 
 from setup_functions import *
 
-
-DirPath = "C:/Users/Arthur/Documents/Linas_B"
 rm = pyvisa.ResourceManager()
 
 
@@ -109,23 +107,34 @@ oscilloscope.write(f":WAVeform:FORMat {WAV_FORMAT}")
 point_value = oscilloscope.query(":WAVeform:POINts?")
 print("Reading "+str(int(point_value))+" of RAW data") # removed \n
 oscilloscope.write(":WAVeform:STARt 1")
-Received_data = oscilloscope.query(":WAVeform:DATA?")
+data_w_header = oscilloscope.query(":WAVeform:DATA?")
 Received_params = oscilloscope.query(":WAVeform:PREamble?")
+
+#save received params to file
+with open(DirPath+"/Received_params_"+ time.strftime("%Y_%m_%d") + "_" + time.strftime("%H_%M_%S") + ".txt", "w") as f:
+    f.write(Received_params)
+
 oscilloscope.write(":RUN")
 
 
 # TEST THE PREAMBLE FOR DATA RECEIVED
-
-
 match WAV_FORMAT:
     case 'ASCii':
-        print("ITS ASCII")
+        print("ASCII NOT SUPPORTED")
         
     case 'BYTE':
-        print("ITS BYTE")
+        print("BYTE NOT SUPPORTED")
         
     case 'WORD':
-        print("ITS WORD")
+        print("ITS WORD\n")
+        header_byte_size = int(data_w_header[1])
+        data_lenght = int(data_w_header[2:header_byte_size])
+        data_wo_header = data_w_header[header_byte_size+1:data_lenght]
+        data_list = []
+        for i in range(0, len(data_wo_header)):
+            data_list.append(ord(data_wo_header[i]))
+        data_array = np.array(data_list)
+        
         
 print(Received_params)
         
