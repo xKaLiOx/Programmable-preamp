@@ -1,0 +1,20 @@
+clc
+clear
+
+DirPath = "C:\Users\Linas\Desktop\univero_darbai\Bakalaurinis\Measurements\";
+% DirPath = "C:/Users/Arthur/Documents/Linas_B/Measurement_data/";
+FileName = "RAW_CH1_2026_03_13_19_43_41.bin";
+ParamName = "Received_params_2026_03_13_19_43_40.txt";
+raw_file = fopen(DirPath+FileName,'r');
+param_file = fopen(DirPath+FileName,'r');
+%no header, read full data
+raw_data = fread(raw_file,"uint16");
+index = 0:1:length(raw_data)-1;
+
+% read preamble
+param_list = fread(param_file,"float")
+
+
+% plot(index,raw_data)
+
+f

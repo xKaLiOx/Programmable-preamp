@@ -3,59 +3,33 @@ import pyvisa
 import time
 import os
 import struct
-from scipy.io import savemat
 
 from setup_functions import *
+from settings import *
 
 rm = pyvisa.ResourceManager()
 
-
-# VGA HI/LO PIN FOR ESTIMATED GAIN MEASUREMENT
-VGA_PA_HILO_PIN = 0  # 0 OFF 1 ON
-
-# MEASUREMENT GENERATOR INPUT
-#################
-START_INPUT_VOLTAGE = 0.1  # 100 mV
-FREQUENCY = 1e6
-#################
-
-# OSCILLOSCOPE SETTINGS
-#################
-USED_CHANNELS = [1, 2]
-MEM_DEPTH = 100e3  # 10k default
-# 1k, 10k, 100k,1M, 10M, 25M, 50M, 100M, 125M
-BITS = 12
-AVERAGE = 1  # 2^n
-PROBE_RATIO = 1
-WAV_MODE_LIST = ["NORMal MAXimum RAW"]  # NORMal MAXimum RAW
-WAV_MODE = "RAW"
-WAV_FORMAT_LIST = ["ASCii BYTE WORD"]
-WAV_FORMAT = "WORD"
-#################
-
-
-CreateFolder()
+CreateFolders()
 
 try:
     generator = rm.open_resource("USB0::0xF4EC::0x1101::SDG6XEBX4R0162::INSTR")
-    oscilloscope = rm.open_resource("USB0::0x1AB1::0x0610::HDO4A244801408::INSTR")
+    oscilloscope = rm.open_resource(
+        "USB0::0x1AB1::0x0610::HDO4A244801408::INSTR")
 except pyvisa.errors.VisaIOError as err:
     print("Could not open VISA device")
     print(rm.list_resources())
     print(f"ERR: {err}")
 
-# reset both
+# reset both instruments
 generator.write("*RST")
 oscilloscope.write("*RST")
 
 # apply sine to generator
-generator.write("C1:BSWV WVTP,SINE")
-generator.write(f"C1:BSWV FRQ,{FREQUENCY}")
-generator.write(f"C1:BSWV AMP,{START_INPUT_VOLTAGE}")
-time.sleep(0.2)
+GeneratorSetSine(generator, 1, FREQUENCY, input_voltage)
+time.sleep(0.1)
 generator.write("C2:OUTP OFF,HZ")
 generator.write("C1:OUTP ON,HZ")
-time.sleep(1)
+time.sleep(.5)
 
 
 # setup the oscilloscope
@@ -67,7 +41,7 @@ for x in range(1, 5):
 # trigger
 oscilloscope.write(":TRIGger:MODE EDGE")
 oscilloscope.write(":TRIGger:EDGE:SOURce CHAN1")
-oscilloscope.write(f":TRIGger:EDGE:LEVel {START_INPUT_VOLTAGE/4}")  # In Volts
+oscilloscope.write(f":TRIGger:EDGE:LEVel {input_voltage/4}")  # In Volts
 oscilloscope.write(":TRIGger:EDGE:SLOPe POSitive")
 oscilloscope.write(":TRIGger:SWEep AUTO")
 
@@ -75,6 +49,10 @@ oscilloscope.write(":TRIGger:SWEep AUTO")
 oscilloscope.write(":ACQuire:AVERages 1")
 oscilloscope.write(f":ACQuire:MDEPth {int(MEM_DEPTH)}")
 oscilloscope.write(":ACQuire:TYPE NORMal")
+
+oscilloscope.write(f":WAVeform:MODE {WAV_MODE}")
+oscilloscope.write(f":WAVeform:FORMat {WAV_FORMAT}")
+
 time.sleep(0.02)
 
 # timebase
@@ -95,95 +73,42 @@ oscilloscope.write(f":CHANnel1:COUPling DC")
 oscilloscope.write(":CHANnel1:IMPedance OMEG")
 oscilloscope.write(":CHANnel2:IMPedance FIFTy")
 
-# horizontal automatic scaling
-horizontal_div = round((START_INPUT_VOLTAGE / 8) / 0.7, 2)
-oscilloscope.write(f":CHANnel1:SCALe {horizontal_div}")
-horizontal_div = 2
-oscilloscope.write(f":CHANnel2:SCALe {horizontal_div}")
-
-oscilloscope.write(":RUN")
-
-# GET RAW DATA
-time.sleep(1)
-oscilloscope.write(":STOP")
-oscilloscope.write(":WAVeform:SOURce CHAN1")
-oscilloscope.write(f":WAVeform:MODE {WAV_MODE}")
-oscilloscope.write(f":WAVeform:FORMat {WAV_FORMAT}")
-point_value = oscilloscope.query(":WAVeform:POINts?")
-print("Reading " + str(int(point_value)) + " of RAW data")  # casting removes \n
-oscilloscope.write(":WAVeform:STARt 1")
-
-Received_params = oscilloscope.query(":WAVeform:PREamble?")
-preamble_oscilloscope = ReceivePreamble(Received_params)
+# vertical automatic scaling for CH1
+vertical_div_ch1 = round((input_voltage / 8) / 0.7, 3)
+oscilloscope.write(f":CHANnel1:SCALe {vertical_div_ch1}")
 
 
-# save received params to file
-with open(
-    DirPath
-    + "/Measurement_data/Received_params_"
-    + time.strftime("%Y_%m_%d")
-    + "_"
-    + time.strftime("%H_%M_%S")
-    + ".txt",
-    "w",
-) as f:
-    f.write(Received_params)
-f.close()
-time.sleep(0.2)
-oscilloscope.write(":WAVeform:DATA?")
-data_w_header = oscilloscope.read_raw()
 
-oscilloscope.write(":RUN")
+###################################################
 
 
-# TEST THE PREAMBLE FOR DATA RECEIVED
-match WAV_FORMAT:
-    case "ASCii":
-        print("ASCII NOT SUPPORTED")
 
-    case "BYTE":
-        print("BYTE NOT SUPPORTED")
+for index in range(dac_start, dac_stop, dac_step):
+    
+    ## SET WITH USB-I2C CONVERTER INDEX
+    
+    
+    #set vertical scaling CH2
+    vga_output_voltage = GetVGAOutputVoltage(input_voltage, index, VGA_PA_HILO_PIN)
+    
+    if(vga_output_voltage > 4.4): #VGA clamped at 4.5V
+        #########################
+        # AUTOMATIC GENERATOR VOLTAGE SCALING?
+        print("clamped")
+    
+    vertical_div_ch2 = round((vga_output_voltage / 8) / 0.7, 3)
+    oscilloscope.write(f":CHANnel2:SCALe {vertical_div_ch2}")
+    
+    oscilloscope.write(":RUN")
+    time.sleep(.8)
+    oscilloscope.write(":STOP")
+    
+    for channel in range(1, len(USED_CHANNELS) + 1):
+        # GET CHANNEL DATA
+        SetWAVParams(oscilloscope, channel, 1, int(MEM_DEPTH))
+        # save received params to file
+        ReceivePreamble(oscilloscope, channel, index)
+        GetRawChannel(oscilloscope, channel, index, WAV_FORMAT)
 
-    case "WORD":
-        print("WORD\n")
-        # skipped #
-        header_byte_size = int(chr(data_w_header[1]))  # number to show the samples
-        data_lenght = int(
-            data_w_header[3 : 2 + header_byte_size]
-        )  # calculate sample size
-        data_wo_header = data_w_header[header_byte_size + 2 : -1]  # get the sample
+print("Saved RAW data to the folder")
 
-        # 2nd is MSB
-        # data_np = np.frombuffer(data_wo_header, dtype=np.uint16)  # format word
-print(Received_params)
-
-#save raw data to .mat
-# Raw_data_mat = dict(enumerate(data_wo_header,1))
-# savemat(DirPath
-#     + "/Measurement_data/RAW_CH1"
-#     + time.strftime("%Y_%m_%d")
-#     + "_"
-#     + time.strftime("%H_%M_%S")
-#     + ".mat",
-#     "w",Raw_data_mat)
-
-with open(DirPath+"/Measurement_data/RAW_CH1_"
-    + time.strftime("%Y_%m_%d")
-    + "_"
-    + time.strftime("%H_%M_%S")
-    + ".bin", "wb") as binary_file:
-  
-    binary_file.write(data_wo_header)
-
-
-# data_dict = 
-# # index on DAC value
-# savemat(
-#     DirPath
-#     + "/Measurement_data/Received_params_"
-#     + time.strftime("%Y_%m_%d")
-#     + "_"
-#     + time.strftime("%H_%M_%S")
-#     + ".txt",
-#     "w",
-# )
