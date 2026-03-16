@@ -4,12 +4,23 @@ import time
 import os
 import struct
 
+#usb-i2c converter
+from ch341_usb_i2c import *
 from setup_functions import *
 from settings import *
 
 rm = pyvisa.ResourceManager()
 
 CreateFolders()
+
+#connect to the devices
+if CONNECT_I2C == True:
+    try:
+        i2c = CH341()
+        print("CH341 I2C Device Initialized")
+        i2c.set_speed(20) # 20 khz slow i2c
+    except ConnectionError as err:
+        print(err)
 
 try:
     generator = rm.open_resource("USB0::0xF4EC::0x1101::SDG6XEBX4R0162::INSTR")
@@ -20,6 +31,8 @@ except pyvisa.errors.VisaIOError as err:
     print(rm.list_resources())
     print(f"ERR: {err}")
 
+#send DAC start stop step values
+ReceiveDACIndex()
 # reset both instruments
 generator.write("*RST")
 oscilloscope.write("*RST")
@@ -41,12 +54,12 @@ for x in range(1, 5):
 # trigger
 oscilloscope.write(":TRIGger:MODE EDGE")
 oscilloscope.write(":TRIGger:EDGE:SOURce CHAN1")
-oscilloscope.write(f":TRIGger:EDGE:LEVel {input_voltage/4}")  # In Volts
+oscilloscope.write(f":TRIGger:EDGE:LEVel 0")  # In Volts
 oscilloscope.write(":TRIGger:EDGE:SLOPe POSitive")
 oscilloscope.write(":TRIGger:SWEep AUTO")
 
 # acquire
-oscilloscope.write(":ACQuire:AVERages 1")
+oscilloscope.write(f":ACQuire:AVERages {AVERAGE}")
 oscilloscope.write(f":ACQuire:MDEPth {int(MEM_DEPTH)}")
 oscilloscope.write(":ACQuire:TYPE NORMal")
 
@@ -74,7 +87,7 @@ oscilloscope.write(":CHANnel1:IMPedance OMEG")
 oscilloscope.write(":CHANnel2:IMPedance FIFTy")
 
 # vertical automatic scaling for CH1
-vertical_div_ch1 = round((input_voltage / 8) / 0.7, 3)
+vertical_div_ch1 = round((input_voltage / 8) / 0.7, 4)
 oscilloscope.write(f":CHANnel1:SCALe {vertical_div_ch1}")
 
 
@@ -96,9 +109,14 @@ for index in range(dac_start, dac_stop, dac_step):
         # AUTOMATIC GENERATOR VOLTAGE SCALING?
         print("clamped")
     
-    vertical_div_ch2 = round((vga_output_voltage / 8) / 0.7, 3)
+    vertical_div_ch2 = round((vga_output_voltage / 8) / 0.7, 4)
+<<<<<<< HEAD
+    # oscilloscope.write(f":CHANnel2:SCALe {vertical_div_ch2}")
+    oscilloscope.write(f":CHANnel2:SCALe {100e-3}")
+=======
     oscilloscope.write(f":CHANnel2:SCALe {vertical_div_ch2}")
     
+>>>>>>> ff3a50a (Configured USB-I2C interface, looped measurements)
     oscilloscope.write(":RUN")
     time.sleep(.8)
     oscilloscope.write(":STOP")
@@ -111,4 +129,3 @@ for index in range(dac_start, dac_stop, dac_step):
         GetRawChannel(oscilloscope, channel, index, WAV_FORMAT)
 
 print("Saved RAW data to the folder")
-

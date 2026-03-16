@@ -28,13 +28,15 @@ def CreateFolders():
         print(f"{FolderName} folder exists")
         pass
     except Exception as err:
-        print(err)
+        print(str(err))
 
     try:
-        os.mkdir(f"{DirPath}.\{FolderName}" + SaveDir)
+        os.mkdir(f"{DirPath}.{FolderName}" + SaveDir)
         print("Created folder:  " + SaveDir)
-    except:
-        print("ERR:" + err)
+    except Exception as err:
+        print("ERR:" + str(err))
+        exit()
+        
 
 def GetRawChannel(oscilloscope : pyvisa.resources.Resource,Channel:int,index:int,WAV_FORMAT:str):
     # save raw data from oscilloscope to file
@@ -50,16 +52,15 @@ def GetRawChannel(oscilloscope : pyvisa.resources.Resource,Channel:int,index:int
             print("BYTE NOT SUPPORTED")
 
         case "WORD":
-            print("WORD\n")
+            print("writing WORD RAW CH:"+str(Channel)+", index:" +str(index))
             # number to show the samples
             header_byte_size = int(chr(data_w_header[1]))
             # get the sample
             data_wo_header = data_w_header[header_byte_size + 2: -1]
 
-    with open(DirPath+FolderName+SaveDir+f"/RAW_CH{Channel}"
+    with open(DirPath+FolderName+SaveDir+f"/RAW_CH{Channel}"+"_"
             + str(index)
             + ".bin", "wb") as binary_file:
-
         binary_file.write(data_wo_header)
     
     
@@ -67,6 +68,14 @@ def SetWAVParams(oscilloscope : pyvisa.resources.Resource, source_channel:int,st
     oscilloscope.write(":WAVeform:SOURce CHAN" + str(source_channel))
     oscilloscope.write(":WAVeform:STARt " + str(start_point))
     oscilloscope.write(":WAVeform:STOP " + str(stop_point))
+
+def ReceiveDACIndex():
+    DAC_PARAMS = f"DAC_START_STEP_STOP,{dac_start},{dac_step},{dac_stop}"
+    with open(
+        DirPath+FolderName+SaveDir+f"/DACIndex" + ".txt", "w"
+    ) as f:
+        f.write(DAC_PARAMS)
+    print("DAC parameters sent")
 
 def ReceivePreamble(oscilloscope : pyvisa.resources.Resource,channel:int,index:int):
     # receive oscilloscope preamble for data reconstruction in MatLab
@@ -87,7 +96,8 @@ def ReceivePreamble(oscilloscope : pyvisa.resources.Resource,channel:int,index:i
     preamble_oscill['yorigin'] = int(Received_params_list[8])
     preamble_oscill['yreference'] = int(Received_params_list[9])
 
+
     with open(
-        DirPath+FolderName+SaveDir+f"/PREAMBLE_CH{channel}_" + str(index) + ".txt",
+        DirPath+FolderName+SaveDir+f"/PREAMBLE_CH{channel}_" + str(index) + ".txt", "w"
     ) as f:
         f.write(Preamble_str)

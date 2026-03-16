@@ -1,8 +1,8 @@
 import time
-
+import struct
 #folder paths
 DirPath = "C:/Users/Arthur/Documents/Linas_B"
-FolderName = "Measurement_data"
+FolderName = "/Measurement_data"
 SaveDir = (
     "/Gain_list_" + time.strftime("%Y_%m_%d") + "_" + time.strftime("%H_%M")
 )
@@ -10,16 +10,29 @@ SaveDir = (
 # VGA HI/LO PIN FOR ESTIMATED GAIN MEASUREMENT
 VGA_PA_HILO_PIN = 0  # 0 OFF 1 ON
 
-# MEASUREMENT GENERATOR INPUT
+# INITIAL MEASUREMENT GENERATOR INPUT
 #################
-input_voltage = 0.1
+input_voltage = 0.03
 FREQUENCY = 1e6
 #################
+
+#I2C CONFIGURATION COMMANDS
+CONNECT_I2C = False
+
+ERASE_ALL = 0
+FLASHING_DAC = 1
+SEND_TO_DAC = 2
+RETRIEVE_FROM_FLASH = 3
+FLASHING_MAGIC_NUMBER = 4
+
+#MAGIC NUMBER
+MAGIC_NUMBER = 0x1324576886754231
+MAGIC_NUMBER_BYTES = struct.pack(">Q", MAGIC_NUMBER) # Little-endian 8-byte representation
 
 # MCU AND DAC SETTINGS
 #################
 dac_start = 0
-dac_stop = 5
+dac_stop = 30
 dac_step = 1  # 0-4095
 DAC_VCC = 3.3
 DAC_BITS = 12

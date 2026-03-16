@@ -98,6 +98,7 @@ class CH341():
         cnt = self.dev.write(self.EP_OUT, cmd)
         if (cnt != len(cmd)):
             raise ConnectionError("Failed to issue I2C Set Speed Command")
+        print("Speed set to "+ speed)
 
 
     """
@@ -394,18 +395,6 @@ def scan(i2c):
         r = i2c.detect(i)
         if r: results += [i]
     print("Responses from i2c devices at: ", [hex(a) for a in results])
-
-
-#I2C CONFIGURATION COMMANDS
-ERASE_ALL = 0
-FLASHING_DAC = 1
-SEND_TO_DAC = 2
-RETRIEVE_FROM_FLASH = 3
-FLASHING_MAGIC_NUMBER = 4
-
-#MAGIC NUMBER
-MAGIC_NUMBER = 0x1324576886754231
-MAGIC_NUMBER_BYTES = struct.pack(">Q", MAGIC_NUMBER) # Little-endian 8-byte representation
 
 if __name__ == "__main__":
     try:
