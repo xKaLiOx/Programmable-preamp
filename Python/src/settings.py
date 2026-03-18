@@ -31,9 +31,9 @@ MAGIC_NUMBER_BYTES = struct.pack(">Q", MAGIC_NUMBER) # Little-endian 8-byte repr
 
 # MCU AND DAC SETTINGS
 #################
-dac_start = 0
-dac_stop = 30
-dac_step = 1  # 0-4095
+dac_start = 2000
+dac_stop = 4000
+dac_step = 100  # 0-4095
 DAC_VCC = 3.3
 DAC_BITS = 12
 

@@ -40,6 +40,7 @@ def CreateFolders():
 
 def GetRawChannel(oscilloscope : pyvisa.resources.Resource,Channel:int,index:int,WAV_FORMAT:str):
     # save raw data from oscilloscope to file
+    oscilloscope.write("*WAI")
     oscilloscope.write(":WAVeform:DATA?")
     data_w_header = oscilloscope.read_raw()
 
@@ -81,6 +82,7 @@ def ReceivePreamble(oscilloscope : pyvisa.resources.Resource,channel:int,index:i
     # receive oscilloscope preamble for data reconstruction in MatLab
     # set the params to dict
     
+    oscilloscope.write("*WAI")
     Preamble_str = oscilloscope.query(":WAVeform:PREamble?")
     Received_params_list = Preamble_str[0:-1].split(',')  # list of params
     preamble_oscill = dict.fromkeys(

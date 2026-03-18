@@ -3,7 +3,7 @@ clear
 
 %%%%
 DirPath = "C:\Users\Arthur\Documents\Linas_B\Measurement_data";
-GainFolderPath = "Gain_list_2026_03_18_17_12";
+GainFolderPath = "Gain_list_2026_03_18_19_45";
 FullPath = DirPath+"\"+GainFolderPath+"\";
 
 PreambleNameStart = "PREAMBLE_CH"; %+channel_index

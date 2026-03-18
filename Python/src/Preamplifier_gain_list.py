@@ -36,12 +36,18 @@ ReceiveDACIndex()
 # reset both instruments
 generator.write("*RST")
 oscilloscope.write("*RST")
+time.sleep(0.1)
 
 # apply sine to generator
-GeneratorSetSine(generator, 1, FREQUENCY, input_voltage)
-time.sleep(0.1)
+generator.write("ROSCillator INT")
+generator.write("ROSC 10MOUT,ON")
+generator.write("C1:SYNC ON,TYPE,CH1")
+
 generator.write("C2:OUTP OFF,HZ")
 generator.write("C1:OUTP ON,HZ")
+time.sleep(0.1)
+
+GeneratorSetSine(generator, 1, FREQUENCY, input_voltage)
 time.sleep(.5)
 
 
@@ -51,10 +57,11 @@ oscilloscope.write(":STOP")
 for x in range(1, 5):
     oscilloscope.write(f":CHANnel{x}:DISPlay OFF")
 
+oscilloscope.write(":SYSTem:RCLock CINPut")
 # trigger
 oscilloscope.write(":TRIGger:MODE EDGE")
-oscilloscope.write(":TRIGger:EDGE:SOURce CHAN1")
-oscilloscope.write(f":TRIGger:EDGE:LEVel 0")  # In Volts
+oscilloscope.write(":TRIGger:EDGE:SOURce EXT") #CHAN1/2 EXT
+oscilloscope.write(f":TRIGger:EDGE:LEVel 1")  # In Volts
 oscilloscope.write(":TRIGger:EDGE:SLOPe POSitive")
 oscilloscope.write(":TRIGger:SWEep AUTO")
 
@@ -96,41 +103,33 @@ oscilloscope.write(f":CHANnel1:SCALe {vertical_div_ch1}")
 
 
 
-for index in range(dac_start, dac_stop, dac_step):
+# for index in range(dac_start, dac_stop, dac_step):
     
-    ## SET WITH USB-I2C CONVERTER INDEX
+#     ## SET WITH USB-I2C CONVERTER INDEX
     
     
-    #set vertical scaling CH2
-    vga_output_voltage = GetVGAOutputVoltage(input_voltage, index, VGA_PA_HILO_PIN)
+#     #set vertical scaling CH2
+#     vga_output_voltage = GetVGAOutputVoltage(input_voltage, index, VGA_PA_HILO_PIN)
     
-    if(vga_output_voltage > 4.4): #VGA clamped at 4.5V
-        #########################
-        # AUTOMATIC GENERATOR VOLTAGE SCALING?
-        print("clamped")
+#     if(vga_output_voltage > 4.4): #VGA clamped at 4.5V
+#         #########################
+#         # AUTOMATIC GENERATOR VOLTAGE SCALING?
+#         print("clamped")
     
-    vertical_div_ch2 = round((vga_output_voltage / 8) / 0.7, 4)
-<<<<<<< HEAD
-<<<<<<< HEAD
-    # oscilloscope.write(f":CHANnel2:SCALe {vertical_div_ch2}")
-    oscilloscope.write(f":CHANnel2:SCALe {100e-3}")
-=======
-    oscilloscope.write(f":CHANnel2:SCALe {vertical_div_ch2}")
+#     vertical_div_ch2 = round((vga_output_voltage / 8) / 0.7, 4)
+#     oscilloscope.write(f":CHANnel2:SCALe {vertical_div_ch2}")
+#     # oscilloscope.write(f":CHANnel2:SCALe {100e-3}")
+#     #run only after all operations are complete
+#     oscilloscope.write("*WAI")
+#     oscilloscope.write(":RUN")
+#     time.sleep(.8)
+#     oscilloscope.write(":STOP")
     
->>>>>>> ff3a50a (Configured USB-I2C interface, looped measurements)
-=======
-    # oscilloscope.write(f":CHANnel2:SCALe {vertical_div_ch2}")
-    oscilloscope.write(f":CHANnel2:SCALe {100e-3}")
->>>>>>> db3c01f (Updated auto measurement)
-    oscilloscope.write(":RUN")
-    time.sleep(.8)
-    oscilloscope.write(":STOP")
-    
-    for channel in range(1, len(USED_CHANNELS) + 1):
-        # GET CHANNEL DATA
-        SetWAVParams(oscilloscope, channel, 1, int(MEM_DEPTH))
-        # save received params to file
-        ReceivePreamble(oscilloscope, channel, index)
-        GetRawChannel(oscilloscope, channel, index, WAV_FORMAT)
+#     for channel in range(1, len(USED_CHANNELS) + 1):
+#         # GET CHANNEL DATA
+#         SetWAVParams(oscilloscope, channel, 1, int(MEM_DEPTH))
+#         # save received params to file
+#         ReceivePreamble(oscilloscope, channel, index)
+#         GetRawChannel(oscilloscope, channel, index, WAV_FORMAT)
 
-print("Saved RAW data to the folder")
+# print("Saved RAW data to the folder")
