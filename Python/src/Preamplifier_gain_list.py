@@ -111,12 +111,17 @@ for index in range(dac_start, dac_stop, dac_step):
     
     vertical_div_ch2 = round((vga_output_voltage / 8) / 0.7, 4)
 <<<<<<< HEAD
+<<<<<<< HEAD
     # oscilloscope.write(f":CHANnel2:SCALe {vertical_div_ch2}")
     oscilloscope.write(f":CHANnel2:SCALe {100e-3}")
 =======
     oscilloscope.write(f":CHANnel2:SCALe {vertical_div_ch2}")
     
 >>>>>>> ff3a50a (Configured USB-I2C interface, looped measurements)
+=======
+    # oscilloscope.write(f":CHANnel2:SCALe {vertical_div_ch2}")
+    oscilloscope.write(f":CHANnel2:SCALe {100e-3}")
+>>>>>>> db3c01f (Updated auto measurement)
     oscilloscope.write(":RUN")
     time.sleep(.8)
     oscilloscope.write(":STOP")
