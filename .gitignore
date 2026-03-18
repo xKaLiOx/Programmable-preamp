@@ -11,8 +11,7 @@ build/
 Thumbs.db
 
 #python venv
-Python/venv_py
-**/__pycache__/
+Python/src/__pycache__/
 
 #MatLab autosave
-*.asv
+MatLab/*.asv
