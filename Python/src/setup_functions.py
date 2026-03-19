@@ -1,13 +1,28 @@
 import numpy as np
 import pyvisa
 import time
+import sys
 import os
 import struct
-from settings import *
+
+import settings
+
+def GetVGAInputVoltage(index: int, VGA_PA_HILO_PIN: int):
+    # output voltage 1, estimated gain
+    dac_voltage = index * (settings.DAC_VCC / (2**settings.DAC_BITS - 1))  # 3.3V 12 bit DAC
+    amp_ctrl = dac_voltage * 15.8e3 / (15.8e3+34e3) # voltage divider
+    if VGA_PA_HILO_PIN == 0:
+        gain_estimation_dB = 50 * amp_ctrl - 6.5 #HILO = LO
+    else:
+        gain_estimation_dB = 50 * amp_ctrl + 5.5 #HILO = HI
+
+    difference_times = 10 ** (gain_estimation_dB / 20)#log convert
+    return  settings.FIXED_OUT_VOLTAGE/difference_times
+
 
 def GetVGAOutputVoltage(input_voltage: float,index: int, VGA_PA_HILO_PIN: int):
     # voltage divider
-    dac_voltage = index * (DAC_VCC / (2**DAC_BITS - 1))  # 3.3V 12 bit DAC
+    dac_voltage = index * (settings.DAC_VCC / (2**settings.DAC_BITS - 1))  # 3.3V 12 bit DAC
     amp_ctrl = dac_voltage * 15.8e3 / (15.8e3+34e3) # voltage divider
     if VGA_PA_HILO_PIN == 0:
         gain_estimation_dB = 50 * amp_ctrl - 6.5 #HILO = LO
@@ -23,27 +38,28 @@ def GeneratorSetSine(generator : pyvisa.resources.Resource,channel: int, frequen
 
 def CreateFolders():
     try:
-        os.mkdir(f"{DirPath}.\{FolderName}")
+        os.mkdir(f"{settings.DirPath}.\{settings.FolderName}")
     except FileExistsError:
-        print(f"{FolderName} folder exists")
+        print(f"{settings.FolderName} folder exists")
         pass
     except Exception as err:
         print(str(err))
 
     try:
-        os.mkdir(f"{DirPath}.{FolderName}" + SaveDir)
-        print("Created folder:  " + SaveDir)
+        os.mkdir(f"{settings.DirPath}.{settings.FolderName}" + settings.SaveDir)
+        print("Created folder:  " + settings.SaveDir)
     except Exception as err:
         print("ERR:" + str(err))
-        exit()
+        return
         
 
 def GetRawChannel(oscilloscope : pyvisa.resources.Resource,Channel:int,index:int,WAV_FORMAT:str):
+    #RETURN TRUE IF SCALING NEEDED AGAIN
     # save raw data from oscilloscope to file
     oscilloscope.write("*WAI")
+    time.sleep(0.05)
     oscilloscope.write(":WAVeform:DATA?")
     data_w_header = oscilloscope.read_raw()
-
     # TEST THE PREAMBLE FOR DATA RECEIVED
     match WAV_FORMAT:
         case "ASCii":
@@ -58,12 +74,33 @@ def GetRawChannel(oscilloscope : pyvisa.resources.Resource,Channel:int,index:int
             header_byte_size = int(chr(data_w_header[1]))
             # get the sample
             data_wo_header = data_w_header[header_byte_size + 2: -1]
+            
+            data_np = np.frombuffer(data_wo_header, dtype=np.uint16)  # format word
+            min_val = np.min(data_np)
+            max_val =np.max(data_np)
+            RescaledValue(oscilloscope,min_val,max_val,Channel)#need to resample the data if true
 
-    with open(DirPath+FolderName+SaveDir+f"/RAW_CH{Channel}"+"_"
+    with open(settings.DirPath+settings.FolderName+settings.SaveDir+f"/RAW_CH{Channel}"+"_"
             + str(index)
             + ".bin", "wb") as binary_file:
         binary_file.write(data_wo_header)
     
+def RescaledValue(oscilloscope : pyvisa.resources.Resource,min_val:np.uint16,max_val:np.uint16,Channel:int):
+    print( "Max and MIN ADC values: "+ str(max_val)+","+str(min_val))
+    #65535 full screen, 0.7 about 45k
+    if((max_val-min_val) > 60000):
+        settings.vertical_div[Channel-1] = round(settings.vertical_div[Channel-1]*2,4)
+        oscilloscope.write(f":CHANnel{Channel}:SCALe {settings.vertical_div[Channel-1]}")
+        print(f"Setting bigger V/div of CHAN{Channel} to {settings.vertical_div[Channel-1]}")
+        settings.Resample_data = True
+        return
+    if ((max_val-min_val) < 20000):
+        settings.vertical_div[Channel-1] = round(settings.vertical_div[Channel-1]/2,4)
+        oscilloscope.write(f":CHANnel{Channel}:SCALe {settings.vertical_div[Channel-1]}")
+        print(f"Setting smaller V/div of CHAN{Channel} to {settings.vertical_div[Channel-1]}")
+        settings.Resample_data = True
+        return
+    settings.Resample_data = False
     
 def SetWAVParams(oscilloscope : pyvisa.resources.Resource, source_channel:int,start_point:int,stop_point:int):
     oscilloscope.write(":WAVeform:SOURce CHAN" + str(source_channel))
@@ -71,9 +108,9 @@ def SetWAVParams(oscilloscope : pyvisa.resources.Resource, source_channel:int,st
     oscilloscope.write(":WAVeform:STOP " + str(stop_point))
 
 def ReceiveDACIndex():
-    DAC_PARAMS = f"DAC_START_STEP_STOP,{dac_start},{dac_step},{dac_stop}"
+    DAC_PARAMS = f"DAC_START_STEP_STOP,{settings.dac_start},{settings.dac_step},{settings.dac_stop}"
     with open(
-        DirPath+FolderName+SaveDir+f"/DACIndex" + ".txt", "w"
+        settings.DirPath+settings.FolderName+settings.SaveDir+f"/DACIndex" + ".txt", "w"
     ) as f:
         f.write(DAC_PARAMS)
     print("DAC parameters sent")
@@ -83,6 +120,7 @@ def ReceivePreamble(oscilloscope : pyvisa.resources.Resource,channel:int,index:i
     # set the params to dict
     
     oscilloscope.write("*WAI")
+    time.sleep(0.05)
     Preamble_str = oscilloscope.query(":WAVeform:PREamble?")
     Received_params_list = Preamble_str[0:-1].split(',')  # list of params
     preamble_oscill = dict.fromkeys(
@@ -100,6 +138,6 @@ def ReceivePreamble(oscilloscope : pyvisa.resources.Resource,channel:int,index:i
 
 
     with open(
-        DirPath+FolderName+SaveDir+f"/PREAMBLE_CH{channel}_" + str(index) + ".txt", "w"
+        settings.DirPath+settings.FolderName+settings.SaveDir+f"/PREAMBLE_CH{channel}_" + str(index) + ".txt", "w"
     ) as f:
         f.write(Preamble_str)
