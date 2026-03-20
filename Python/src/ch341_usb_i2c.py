@@ -402,7 +402,7 @@ if __name__ == "__main__":
         print("CH341 I2C Device Initialized")
         i2c.set_speed(20) # 20 khz slow i2c
         
-        #get data from csv
+        #packet of stm32 flash is 64 bits, 16 bits for one DAC_index, 4, so it is 16 bit values clear
         data = [0xFA,0xFC,0xFF,0xFF,0xFF,0xFF,0xFB,0xFE]
         
         

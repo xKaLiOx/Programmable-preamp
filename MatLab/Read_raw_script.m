@@ -3,21 +3,25 @@ clear
 
 %%%%
 DirPath = "C:\Users\Arthur\Documents\Linas_B\Measurement_data";
-GainFolderPath = "Gain_list_2026_03_19_18_49";
+GainFolderPath = "Gain_list_2026_03_20_14_02";
 FullPath = DirPath+"\"+GainFolderPath+"\";
 
 PreambleNameStart = "PREAMBLE_CH"; %+channel_index
 RawNameStart = "RAW_CH"; %+channel_index
 UsedChannels = [1,2];
-
-DACParamName = "DACIndex.txt";
+%% 
+ParamName = "ParameterList.txt";
 %read start stop step values
-DAC_param_file = fopen(FullPath+DACParamName);
-DAC_param_list = textscan(DAC_param_file,"%s",Delimiter=',');
+ParamFile = fopen(FullPath+ParamName);
+Param_list = textscan(ParamFile,"%s",Delimiter='\n');
+DAC_param_list = split(Param_list{1}(1),',');
+attenuator_param_list = split(Param_list{1}(2),',');
 
-StartIndex = str2double(DAC_param_list{1}{2}); %DAC index start
-StopIndex = str2double(DAC_param_list{1}{4}); %DAC index stop
-StepIndex = str2double(DAC_param_list{1}{3});
+input_attenuation_dB = str2double(attenuator_param_list{2});
+
+StartIndex = str2double(DAC_param_list{2}); %DAC index start
+StepIndex = str2double(DAC_param_list{3});
+StopIndex = str2double(DAC_param_list{4}); %DAC index stop
 %%%%
 %%%%
 %SWC frequency:

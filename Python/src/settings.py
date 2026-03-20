@@ -6,9 +6,14 @@ FolderName = "/Measurement_data"
 SaveDir = (
     "/Gain_list_" + time.strftime("%Y_%m_%d") + "_" + time.strftime("%H_%M")
 )
+ParameterName = "/ParameterList.txt"
 
 # VGA HI/LO PIN FOR ESTIMATED GAIN MEASUREMENT
 VGA_PA_HILO_PIN = 0  # 0 OFF 1 ON
+
+#ATTENUATOR ON INPUT
+ATTENUATOR_USED = True
+ATTENUATOR_dB = 10 # dB voltage attenuation, about 3.16 times
 
 # INITIAL MEASUREMENT GENERATOR INPUT
 #################
@@ -20,6 +25,7 @@ FIXED_OUT_VOLTAGE = 1 ##voltage at output, changing the generator input signal
 
 #I2C CONFIGURATION COMMANDS
 CONNECT_I2C = False
+STM_I2C_ADDR = 0x25
 
 ERASE_ALL = 0
 FLASHING_DAC = 1
@@ -27,7 +33,7 @@ SEND_TO_DAC = 2
 RETRIEVE_FROM_FLASH = 3
 FLASHING_MAGIC_NUMBER = 4
 
-#MAGIC NUMBER
+#MAGIC NUMBER FOR MCU FLASHING
 MAGIC_NUMBER = 0x1324576886754231
 MAGIC_NUMBER_BYTES = struct.pack(">Q", MAGIC_NUMBER) # Little-endian 8-byte representation
 
@@ -45,9 +51,9 @@ USED_CHANNELS = [1, 2]
 MEM_DEPTH = 10e3  # 10k default
 # 1k, 10k, 100k,1M, 10M, 25M, 50M, 100M, 125M
 BITS = 12
+ACQUIRE_TYPE = "NORMal"#{NORMal|PEAK|AVERages|HRESolution|ULTRa}
 AVERAGE = 1  # 2^n
 PROBE_RATIO = 1
-HOLDOFF = 30e-9
 WAV_MODE_LIST = ["NORMal MAXimum RAW"]  # NORMal MAXimum RAW
 WAV_MODE = "RAW"
 WAV_FORMAT_LIST = ["ASCii BYTE WORD"]

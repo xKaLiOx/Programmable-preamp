@@ -32,9 +32,10 @@ def GetVGAOutputVoltage(input_voltage: float,index: int, VGA_PA_HILO_PIN: int):
     return vga_output_times * input_voltage
 
 def GeneratorSetSine(generator : pyvisa.resources.Resource,channel: int, frequency: float, voltage: float):
-    generator.write(f"C{channel}:BSWV WVTP,SINE")
-    generator.write(f"C{channel}:BSWV FRQ,{frequency}")
-    generator.write(f"C{channel}:BSWV AMP,{voltage}")
+    if voltage <= 10 and voltage >= 2e-3:#limit vout to 10 vpp
+        generator.write(f"C{channel}:BSWV WVTP,SINE")
+        generator.write(f"C{channel}:BSWV FRQ,{frequency}")
+        generator.write(f"C{channel}:BSWV AMP,{voltage}")
 
 def CreateFolders():
     try:
@@ -78,7 +79,7 @@ def GetRawChannel(oscilloscope : pyvisa.resources.Resource,Channel:int,index:int
             data_np = np.frombuffer(data_wo_header, dtype=np.uint16)  # format word
             min_val = np.min(data_np)
             max_val =np.max(data_np)
-            RescaledValue(oscilloscope,min_val,max_val,Channel)#need to resample the data if true
+            RescaledValue(oscilloscope,min_val,max_val,Channel)#need to resample the data if settings.Resample_data is true 
 
     with open(settings.DirPath+settings.FolderName+settings.SaveDir+f"/RAW_CH{Channel}"+"_"
             + str(index)
@@ -107,13 +108,29 @@ def SetWAVParams(oscilloscope : pyvisa.resources.Resource, source_channel:int,st
     oscilloscope.write(":WAVeform:STARt " + str(start_point))
     oscilloscope.write(":WAVeform:STOP " + str(stop_point))
 
-def ReceiveDACIndex():
-    DAC_PARAMS = f"DAC_START_STEP_STOP,{settings.dac_start},{settings.dac_step},{settings.dac_stop}"
-    with open(
-        settings.DirPath+settings.FolderName+settings.SaveDir+f"/DACIndex" + ".txt", "w"
-    ) as f:
-        f.write(DAC_PARAMS)
-    print("DAC parameters sent")
+def ReceiveParameters():
+    
+    #Parameters about DAC stepping
+    try:
+        dac_params = f"DAC_START_STEP_STOP,{settings.dac_start},{settings.dac_step},{settings.dac_stop}\n"
+        with open(
+            settings.DirPath+settings.FolderName+settings.SaveDir+settings.ParameterName, "w"
+        ) as f:
+            f.write(dac_params)
+        print("DAC parameters sent")
+    except Exception as err:
+        print("ERR PRINTING DAC PARAMETERS:" + err)
+    #Parameters about input attenuation for MatLab
+    if settings.ATTENUATOR_USED:
+        try:
+            attenuation_params = f"ATTENUATOR_USED_dB,{settings.ATTENUATOR_dB}\n"
+            with open(
+                settings.DirPath+settings.FolderName+settings.SaveDir+settings.ParameterName, "a"
+            ) as f:
+                f.write(attenuation_params)
+            print("Attenuation parameters sent")
+        except Exception as err:
+            print("ERR PRINTING ATTENUATION PARAMETERS:" + err)
 
 def ReceivePreamble(oscilloscope : pyvisa.resources.Resource,channel:int,index:int):
     # receive oscilloscope preamble for data reconstruction in MatLab
@@ -141,3 +158,9 @@ def ReceivePreamble(oscilloscope : pyvisa.resources.Resource,channel:int,index:i
         settings.DirPath+settings.FolderName+settings.SaveDir+f"/PREAMBLE_CH{channel}_" + str(index) + ".txt", "w"
     ) as f:
         f.write(Preamble_str)
+        
+def SetupOscTrigger(oscilloscope : pyvisa.resources.Resource,mode:str,coupling:str,holdoff:float,sweep:str):
+    oscilloscope.write(f":TRIGger:MODE {mode}")#EDGE|PULSe|SLOPe
+    oscilloscope.write(f":TRIGger:HOLDoff {holdoff}")
+    oscilloscope.write(f":TRIGger:COUPling {coupling}")
+    oscilloscope.write(f":TRIGger:SWEep {sweep}")#{AUTO|NORMal|SINGle}

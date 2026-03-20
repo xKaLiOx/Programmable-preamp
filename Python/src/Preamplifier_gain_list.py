@@ -12,7 +12,6 @@ from setup_functions import *
 start_time = time.time()
 rm = pyvisa.ResourceManager()
 
-CreateFolders()
 
 #connect to the devices
 if settings.CONNECT_I2C == True:
@@ -29,45 +28,43 @@ try:
         "USB0::0x1AB1::0x0610::HDO4A244801408::INSTR")
 except pyvisa.errors.VisaIOError as err:
     print("Could not open VISA device")
-    print(rm.list_resources())
+    #print(rm.list_resources())
     print(f"ERR: {err}")
+    exit()
 
 #send DAC start stop step values
-ReceiveDACIndex()
+CreateFolders()
+ReceiveParameters()
 # reset both instruments
 generator.write("*RST")
 oscilloscope.write("*RST")
 time.sleep(0.1)
 
-# setup generator sync with oscilloscope
+# setup generator sync with oscilloscope and turn off channel outputs
 generator.write("ROSCillator INT")
 generator.write("ROSC 10MOUT,ON")
 generator.write("C1:SYNC ON,TYPE,CH1")
 
-GeneratorSetSine(generator, 1, settings.FREQUENCY, settings.input_voltage)
-time.sleep(0.1)
 generator.write("C2:OUTP OFF,HZ")
-generator.write("C1:OUTP ON,HZ")
+generator.write("C1:OUTP OFF,HZ")
 time.sleep(0.1)
+
 # setup the oscilloscope
 oscilloscope.write(":STOP")
-
 for x in range(1, 5):
     oscilloscope.write(f":CHANnel{x}:DISPlay OFF")
-
 oscilloscope.write(":SYSTem:RCLock CINPut")
 # trigger
-oscilloscope.write(":TRIGger:MODE EDGE")
-oscilloscope.write(":TRIGger:EDGE:SOURce CHAN1") #CHAN1/2 EXT
+
+SetupOscTrigger(oscilloscope,"EDGE","DC",30e-9,"AUTO")
+oscilloscope.write(f":TRIGger:EDGE:SOURce CHAN1") #CHAN1/2 EXT
+oscilloscope.write(f":TRIGger:EDGE:SLOPe POSitive")
 oscilloscope.write(f":TRIGger:EDGE:LEVel 0")  # In Volts
-oscilloscope.write(f":TRIGger:HOLDoff {settings.HOLDOFF}")
-oscilloscope.write(":TRIGger:EDGE:SLOPe POSitive")
-oscilloscope.write(":TRIGger:SWEep AUTO")
 
 # acquire
+oscilloscope.write(f":ACQuire:TYPE {settings.ACQUIRE_TYPE}")
 oscilloscope.write(f":ACQuire:AVERages {settings.AVERAGE}")
 oscilloscope.write(f":ACQuire:MDEPth {int(settings.MEM_DEPTH)}")
-oscilloscope.write(":ACQuire:TYPE NORMal")
 
 oscilloscope.write(f":WAVeform:MODE {settings.WAV_MODE}")
 oscilloscope.write(f":WAVeform:FORMat {settings.WAV_FORMAT}")
@@ -98,23 +95,38 @@ oscilloscope.write(":CHANnel2:IMPedance FIFTy")
 print("--- %s seconds ---" % (round(time.time() - start_time, 2)))
 print("Starting the loop")
 for index in range(settings.dac_start, settings.dac_stop, settings.dac_step):
-    ## SET WITH USB-I2C CONVERTER INDEX
+    if settings.CONNECT_I2C == True:
+        #sending fixed data length
+        #packet of stm32 flash is 64 bits, 16 bits for one DAC_index, 4, so it is 16 bit values clear
+        data = [0,0,0,0,0,0,0,0]
+        i2c.stm32_send_frame(settings.STM_I2C_ADDR,settings.SEND_TO_DAC,index,data)
     
-    #sets false if the values are not exceeding, else resample
+    
+    #sets false if the values of oscilloscope are not overflowing, else resize and resample
     settings.Resample_data = True
     while(settings.Resample_data == True):
-        #set vertical scaling of CH2 CH1 and amplitude of gen
-        #vga_output_voltage = GetVGAOutputVoltage(input_voltage, index, VGA_PA_HILO_PIN)
+
         #VOLTAGE AT OUTPUT FIXED, CALCULATE IN BASED ON THE OUT
-        Input_voltage = GetVGAInputVoltage(index,settings.VGA_PA_HILO_PIN)
-        #set the voltage at a generator
-        GeneratorSetSine(generator, 1, settings.FREQUENCY, Input_voltage)
+        Input_voltage = GetVGAInputVoltage(index,settings.VGA_PA_HILO_PIN) #voltage at CH1
         
+        if settings.ATTENUATOR_USED:
+            voltage_ratio = 10**(settings.ATTENUATOR_dB/20)
+        generator_voltage = Input_voltage*voltage_ratio
+        #set the voltage at a generator
+        if generator_voltage > 20 or generator_voltage < 2e-3:
+            print("GENERATOR EXCEEDED VOLTAGE LIMIT, STOPPING THE MEASUREMENT")
+            print(f"Measurements stopped: at START:{settings.dac_start},STOP:{index},WITH INDEXING STEP:{settings.dac_step}")
+            exit()
+        GeneratorSetSine(generator, 1, settings.FREQUENCY, generator_voltage)
+        generator.write("C1:OUTP ON,HZ")
+
         oscilloscope.write("*WAI")
         time.sleep(0.05)
         oscilloscope.write(":RUN")
         time.sleep(.8)
         oscilloscope.write(":STOP")
+        
+        generator.write("C1:OUTP OFF,HZ")
         
         for channel in range(1, len(settings.USED_CHANNELS) + 1):
             # GET CHANNEL DATA
