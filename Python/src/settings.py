@@ -1,11 +1,9 @@
 import time
 import struct
+import numpy as np
 #folder paths
 DirPath = "C:/Users/Arthur/Documents/Linas_B"
-FolderName = "/Measurement_data"
-SaveDir = (
-    "/Gain_list_" + time.strftime("%Y_%m_%d") + "_" + time.strftime("%H_%M")
-)
+DirMeasurementName = "/Measurement_data"
 ParameterName = "/ParameterList.txt"
 
 # VGA HI/LO PIN FOR ESTIMATED GAIN MEASUREMENT
@@ -63,3 +61,21 @@ vertical_div = [round((input_voltage / 8) / 0.7, 4),0.1]
 Resample_data = False
 #################
 
+#specific settings for gain list
+SaveDirGain = (
+    "/Gain_list_" + time.strftime("%Y_%m_%d") + "_" + time.strftime("%H_%M")
+)
+
+#specific settings for bode plot script
+SaveDirBode = (
+    "/Bode_plot_" + time.strftime("%Y_%m_%d") + "_" + time.strftime("%H_%M")
+)
+
+#measurements from 100kHz to 40 MHz
+FREQUENCY_START = 100e3
+FREQUENCY_STOP = 40e6
+FREQ_NUM = 100
+#set a constant DAC value of calibrated gain at certain frequency
+CALIBRATED_DAC_VALUE = 400
+GENERATOR_VOLTAGE = 0.5 #0.5Vpp generator output
+FREQUENCY_LIST = np.geomspace(FREQUENCY_START,FREQUENCY_STOP,FREQ_NUM,dtype=np.uint64)

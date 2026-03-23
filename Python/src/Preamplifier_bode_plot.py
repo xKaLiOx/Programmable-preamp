@@ -28,13 +28,13 @@ try:
         "USB0::0x1AB1::0x0610::HDO4A244801408::INSTR")
 except pyvisa.errors.VisaIOError as err:
     print("Could not open VISA device")
-    #print(rm.list_resources())
+    print(rm.list_resources())
     print(f"ERR: {err}")
     exit()
 
 #send DAC start stop step values
-CreateFolders(settings.SaveDirGain)
-ReceiveParameters("GAIN_LIST")
+CreateFolders(settings.SaveDirBode)
+ReceiveParameters("BODE_PLOT")
 # reset both instruments
 generator.write("*RST")
 oscilloscope.write("*RST")
@@ -73,10 +73,6 @@ time.sleep(0.02)
 
 # timebase
 oscilloscope.write(":TIMebase:DELay:ENABle OFF")
-NUM_OF_SINES = 10
-time_div = ((1 / settings.FREQUENCY) * NUM_OF_SINES) / 10
-# REMARKS TIMEDIV
-oscilloscope.write(f":TIMebase:MAIN:SCALe {time_div}")
 
 # channel setup
 for x in settings.USED_CHANNELS:
@@ -91,50 +87,38 @@ oscilloscope.write(":CHANnel2:IMPedance FIFTy")
 
 ###################################################
 
+#send to USB-I2C gain point
+if settings.CONNECT_I2C == True:
+    data = [0,0,0,0,0,0,0,0]
+    i2c.stm32_send_frame(settings.STM_I2C_ADDR,settings.SEND_TO_DAC,settings.CALIBRATED_DAC_VALUE,data)
 
 print("--- %s seconds ---" % (round(time.time() - start_time, 2)))
 print("Starting the loop")
-for index in range(settings.dac_start, settings.dac_stop, settings.dac_step):
-    if settings.CONNECT_I2C == True:
-        #sending fixed data length
-        #packet of stm32 flash is 64 bits, 16 bits for one DAC_index, 4, so it is 16 bit values clear
-        data = [0,0,0,0,0,0,0,0]
-        i2c.stm32_send_frame(settings.STM_I2C_ADDR,settings.SEND_TO_DAC,index,data)
-    
-    
+
+for frequency in settings.FREQUENCY_LIST:
     #sets false if the values of oscilloscope are not overflowing, else resize and resample
     settings.Resample_data = True
     while(settings.Resample_data == True):
 
-        #VOLTAGE AT OUTPUT FIXED, CALCULATE IN BASED ON THE OUT
-        Input_voltage = GetVGAInputVoltage(index,settings.VGA_PA_HILO_PIN) #voltage at CH1
-        
-        if settings.ATTENUATOR_USED:
-            voltage_ratio = 10**(settings.ATTENUATOR_dB/20)
-        generator_voltage = Input_voltage*voltage_ratio
-        #set the voltage at a generator
-        if generator_voltage > 20 or generator_voltage < 2e-3:
-            print("GENERATOR EXCEEDED VOLTAGE LIMIT, STOPPING THE MEASUREMENT")
-            print(f"Measurements stopped: at START:{settings.dac_start},STOP:{index},WITH INDEXING STEP:{settings.dac_step}")
-            exit()
-        GeneratorSetSine(generator, 1, settings.FREQUENCY, generator_voltage)
-        generator.write("C1:OUTP ON,HZ")
-
+        #VOLTAGE AT INPUT FIXED
+        GeneratorSetSine(generator, 1, frequency, settings.GENERATOR_VOLTAGE)
         oscilloscope.write("*WAI")
         time.sleep(0.05)
         oscilloscope.write(":RUN")
-        time.sleep(.8)
+        time.sleep(.7)
         oscilloscope.write(":STOP")
-        
-        generator.write("C1:OUTP OFF,HZ")
         
         for channel in range(1, len(settings.USED_CHANNELS) + 1):
             # GET CHANNEL DATA
             
             SetWAVParams(oscilloscope, channel, 1, int(settings.MEM_DEPTH))
+            time.sleep(0.1)
             # save received params to file
-            ReceivePreamble(oscilloscope,settings.SaveDirGain, channel, index)
-            GetRawChannel(oscilloscope,settings.SaveDirGain, channel, index, settings.WAV_FORMAT)
+            ReceivePreamble(oscilloscope,settings.SaveDirBode, channel, frequency)
+            GetRawChannel(oscilloscope,settings.SaveDirBode, channel, frequency, settings.WAV_FORMAT)
+            #exit the loop if 1st channel already needs resampling
+            if settings.Resample_data == True:
+                break
                 
 print("--- %s seconds ---" % (round(time.time() - start_time, 2)))
 print("end of loop")
