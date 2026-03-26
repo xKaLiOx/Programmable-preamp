@@ -38,7 +38,6 @@
         * Output
         * EVENT_OUT
         * EXTI
-     PB7   ------> SYS_PVD_IN
 */
 void MX_GPIO_Init(void)
 {
@@ -103,12 +102,6 @@ void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
-
-  /*Configure GPIO pin : PVD_EXT_Pin */
-  GPIO_InitStruct.Pin = PVD_EXT_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(PVD_EXT_GPIO_Port, &GPIO_InitStruct);
 
   /* EXTI interrupt init*/
   HAL_NVIC_SetPriority(EXTI15_10_IRQn, 5, 0);

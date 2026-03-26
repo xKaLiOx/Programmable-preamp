@@ -39,9 +39,14 @@ extern "C" {
 typedef enum
 {
 	CALIBRATION,
-	RUNNING,
-	SLEEP
+	RUNNING
 } FSM_MCU;
+
+typedef enum
+{
+	SLEEPING,
+	AWAKE
+} MCU_MODE;
 
 /* USER CODE END ET */
 
@@ -87,8 +92,6 @@ void Error_Handler(void);
 #define DEBUG_LED2_GPIO_Port GPIOB
 #define DEBUG_LED1_Pin GPIO_PIN_6
 #define DEBUG_LED1_GPIO_Port GPIOB
-#define PVD_EXT_Pin GPIO_PIN_7
-#define PVD_EXT_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
 

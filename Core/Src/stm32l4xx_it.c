@@ -92,6 +92,10 @@ void HardFault_Handler(void)
   while (1)
   {
     /* USER CODE BEGIN W1_HardFault_IRQn 0 */
+	  HAL_GPIO_TogglePin(MCU_SLEEP_GPIO_Port, MCU_SLEEP_Pin);
+	  HAL_GPIO_TogglePin(DEBUG_LED1_GPIO_Port, DEBUG_LED1_Pin);
+	  HAL_GPIO_TogglePin(DEBUG_LED2_GPIO_Port, DEBUG_LED2_Pin);
+	  HAL_Delay(200);
     /* USER CODE END W1_HardFault_IRQn 0 */
   }
 }
@@ -200,20 +204,6 @@ void SysTick_Handler(void)
 /* For the available peripheral interrupt handler names,                      */
 /* please refer to the startup file (startup_stm32l4xx.s).                    */
 /******************************************************************************/
-
-/**
-  * @brief This function handles PVD/PVM1/PVM3/PVM4 interrupts through EXTI lines 16/35/37/38.
-  */
-void PVD_PVM_IRQHandler(void)
-{
-  /* USER CODE BEGIN PVD_PVM_IRQn 0 */
-
-  /* USER CODE END PVD_PVM_IRQn 0 */
-  HAL_PWREx_PVD_PVM_IRQHandler();
-  /* USER CODE BEGIN PVD_PVM_IRQn 1 */
-
-  /* USER CODE END PVD_PVM_IRQn 1 */
-}
 
 /**
   * @brief This function handles TIM1 update interrupt and TIM16 global interrupt.

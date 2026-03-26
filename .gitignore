@@ -1,3 +1,7 @@
+# vscode
+.settings/
+.vscode/
+
 # Build output
 Debug/
 Release/
@@ -12,6 +16,7 @@ Thumbs.db
 
 #python venv
 Python/src/__pycache__/
+Python/venv_py/
 
 #MatLab autosave
 MatLab/*.asv
