@@ -53,75 +53,75 @@
 /* USER CODE BEGIN PV */
 FSM_MCU MCU_STATE = RUNNING; // default MCU state is normal
 MCU_MODE MCU_STATUS = AWAKE;
+uint8_t E_BUSY = 1;
 
-uint8_t EXTERNAL_I2C_SHORT = 0; //disable if 1
+uint8_t IS_EXTERNAL_I2C_SHORT = 0; //disable if 1
+
+char text[12] = "\0";
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
 void ReadI2CLine(); //test I2C line for test line
+uint8_t EpaperGetPixelCenter(char *string, sFONT *font);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
+uint8_t E_paper_middle_pixel;
 /* USER CODE END 0 */
 
 /**
-  * @brief  The application entry point.
-  * @retval int
-  */
-int main(void)
-{
+ * @brief  The application entry point.
+ * @retval int
+ */
+int main(void) {
 
-  /* USER CODE BEGIN 1 */
-  /* USER CODE END 1 */
+	/* USER CODE BEGIN 1 */
+	/* USER CODE END 1 */
 
-  /* MCU Configuration--------------------------------------------------------*/
+	/* MCU Configuration--------------------------------------------------------*/
 
-  /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
-  HAL_Init();
+	/* Reset of all peripherals, Initializes the Flash interface and the Systick. */
+	HAL_Init();
 
-  /* USER CODE BEGIN Init */
-  /* USER CODE END Init */
+	/* USER CODE BEGIN Init */
+	/* USER CODE END Init */
 
-  /* Configure the system clock */
-  SystemClock_Config();
+	/* Configure the system clock */
+	SystemClock_Config();
 
-  /* USER CODE BEGIN SysInit */
+	/* USER CODE BEGIN SysInit */
 
 	//read i2c3 pins before configuring
-  /* USER CODE END SysInit */
+	/* USER CODE END SysInit */
 
-  /* Initialize all configured peripherals */
-  MX_GPIO_Init();
-  MX_I2C1_Init();
-  MX_SPI1_Init();
-  MX_TIM16_Init();
-  /* USER CODE BEGIN 2 */
+	/* Initialize all configured peripherals */
+	MX_GPIO_Init();
+	MX_I2C1_Init();
+	MX_SPI1_Init();
+	MX_TIM16_Init();
+	/* USER CODE BEGIN 2 */
 
-  HAL_GPIO_TogglePin(MCU_SLEEP_GPIO_Port, MCU_SLEEP_Pin);
-  HAL_GPIO_TogglePin(DEBUG_LED1_GPIO_Port, DEBUG_LED1_Pin);
-  HAL_GPIO_TogglePin(DEBUG_LED2_GPIO_Port, DEBUG_LED2_Pin);
-  HAL_Delay(200);
-  HAL_GPIO_TogglePin(MCU_SLEEP_GPIO_Port, MCU_SLEEP_Pin);
-  HAL_GPIO_TogglePin(DEBUG_LED1_GPIO_Port, DEBUG_LED1_Pin);
-  HAL_GPIO_TogglePin(DEBUG_LED2_GPIO_Port, DEBUG_LED2_Pin);
+	HAL_GPIO_TogglePin(MCU_SLEEP_GPIO_Port, MCU_SLEEP_Pin);
+	HAL_GPIO_TogglePin(DEBUG_LED1_GPIO_Port, DEBUG_LED1_Pin);
+	HAL_GPIO_TogglePin(DEBUG_LED2_GPIO_Port, DEBUG_LED2_Pin);
+	HAL_Delay(100);
+	HAL_GPIO_TogglePin(MCU_SLEEP_GPIO_Port, MCU_SLEEP_Pin);
+	HAL_GPIO_TogglePin(DEBUG_LED1_GPIO_Port, DEBUG_LED1_Pin);
+	HAL_GPIO_TogglePin(DEBUG_LED2_GPIO_Port, DEBUG_LED2_Pin);
 
-  ReadI2CLine();
+	ReadI2CLine();
 
-	if (!EXTERNAL_I2C_SHORT) {
-		printf("\nCALIBRATION PROCEDURE\n");
-		MX_I2C3_Init();
-		MCU_STATE = CALIBRATION;
-	} else {
-		printf("I2C IS OFF/ NORMAL PROCEDURE\n");
-	}
 	//INIT e-paper
+	//dont turnoff e-paper as it sits at 2V and is screaming (higher current draw as well)
+
+	HAL_GPIO_WritePin(E_PWR_EN_GPIO_Port, E_PWR_EN_Pin, GPIO_PIN_RESET); //turn on power for E-paper (open drain setup, RESET pulls low to GND)
+
 	EPD_1IN02_Init();
 	EPD_1IN02_Clear();
-	DEV_Delay_ms(500);
+	DEV_Delay_ms(100);
 
 	static UBYTE CurrentImage[Imagesize];
 	static UBYTE OldImage[Imagesize];
@@ -133,78 +133,120 @@ int main(void)
 	Paint_SelectImage(CurrentImage);
 	Paint_Clear(WHITE);
 
-	Paint_DrawString_EN(10, 0, "xCepelinuxz", &Font16, BLACK, WHITE);
-	Paint_DrawString_EN(10, 20, "hello world", &Font12, WHITE, BLACK);
-	Paint_DrawNum(10, 33, 123456789, &Font12, BLACK, WHITE);
-	Paint_DrawNum(10, 50, 987654321, &Font16, WHITE, BLACK);
+	if (!IS_EXTERNAL_I2C_SHORT) {
+		printf("\nCALIBRATION PROCEDURE\n");
+		MX_I2C3_Init();
+		MCU_STATE = CALIBRATION;
 
-	while (HAL_GPIO_ReadPin(E_BUSY_GPIO_Port, E_BUSY_Pin) != GPIO_PIN_SET)
-		; //low is busy
-	EPD_1IN02_Display(CurrentImage);
-	//sleep after setting
-	while (HAL_GPIO_ReadPin(E_BUSY_GPIO_Port, E_BUSY_Pin) != GPIO_PIN_SET)
-		;
-	EPD_1IN02_Sleep();
-	DEV_Module_Exit(); //turn off power and CS line
+		strcpy(text, "MODE");
+		E_paper_middle_pixel = EpaperGetPixelCenter(text, &Font24_Terminus);
+		Paint_DrawString_EN(E_paper_middle_pixel, 0, text, &Font24_Terminus,
+		BLACK, WHITE);
 
-  /* USER CODE END 2 */
+		strcpy(text, "CALIBRATE");
+		E_paper_middle_pixel = EpaperGetPixelCenter(text, &Font16_Terminus_normal);
+		Paint_DrawString_EN(E_paper_middle_pixel, 30, text, &Font16_Terminus_normal, BLACK, WHITE);
+	} else {
+		printf("I2C IS SHORTED/ NORMAL PROCEDURE\n");
 
-  /* Infinite loop */
-  /* USER CODE BEGIN WHILE */
-	while (1) {
-    /* USER CODE END WHILE */
-
-    /* USER CODE BEGIN 3 */
+		strcpy(text, "MODE");
+		E_paper_middle_pixel = EpaperGetPixelCenter(text, &Font24_Terminus);
+		Paint_DrawString_EN(E_paper_middle_pixel, 0, text, &Font24_Terminus,
+		BLACK, WHITE);
+		strcpy(text, "NORMAL");
+		E_paper_middle_pixel = EpaperGetPixelCenter(text, &Font24_Terminus);
+		Paint_DrawString_EN(E_paper_middle_pixel, 30, text,
+				&Font16_Terminus_normal, BLACK, WHITE);
 	}
-  /* USER CODE END 3 */
+
+	//turn off e-paper power after init
+	EPD_1IN02_Display(CurrentImage);
+	EPD_1IN02_Sleep();
+	HAL_Delay(1000);
+	//testing partial init time update
+	uint8_t counter = 0;
+
+	EPD_1IN02_Part_Init();
+	Paint_SelectImage(OldImage);
+	Paint_Clear(WHITE);
+	Paint_SelectImage(CurrentImage);
+	Paint_Clear(WHITE);
+//    EPD_1IN02_Clear();
+
+	/* USER CODE END 2 */
+
+	/* Infinite loop */
+	/* USER CODE BEGIN WHILE */
+	while (1) {
+		sprintf(text,"%d",counter);
+		E_paper_middle_pixel = EpaperGetPixelCenter(text, &Font24_Terminus);
+
+		Paint_ClearWindows(E_paper_middle_pixel, 50,
+				E_paper_middle_pixel + strlen(text)*Font24_Terminus.Width,
+				50 + Font24_Terminus.Height, WHITE);
+
+
+		Paint_DrawNum(E_paper_middle_pixel, 50, counter, &Font24_Terminus,
+		WHITE, BLACK);
+
+		if (counter == 15) {
+			EPD_1IN02_Sleep();
+			break;
+		}
+		EPD_1IN02_DisplayPartial(OldImage, CurrentImage);
+		memcpy(OldImage, CurrentImage, Imagesize);
+
+		counter++;
+		/* USER CODE END WHILE */
+
+		/* USER CODE BEGIN 3 */
+	}
+	/* USER CODE END 3 */
 }
 
 /**
-  * @brief System Clock Configuration
-  * @retval None
-  */
-void SystemClock_Config(void)
-{
-  RCC_OscInitTypeDef RCC_OscInitStruct = {0};
-  RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
+ * @brief System Clock Configuration
+ * @retval None
+ */
+void SystemClock_Config(void) {
+	RCC_OscInitTypeDef RCC_OscInitStruct = { 0 };
+	RCC_ClkInitTypeDef RCC_ClkInitStruct = { 0 };
 
-  /** Configure the main internal regulator output voltage
-  */
-  if (HAL_PWREx_ControlVoltageScaling(PWR_REGULATOR_VOLTAGE_SCALE1) != HAL_OK)
-  {
-    Error_Handler();
-  }
+	/** Configure the main internal regulator output voltage
+	 */
+	if (HAL_PWREx_ControlVoltageScaling(PWR_REGULATOR_VOLTAGE_SCALE1)
+			!= HAL_OK) {
+		Error_Handler();
+	}
 
-  /** Initializes the RCC Oscillators according to the specified parameters
-  * in the RCC_OscInitTypeDef structure.
-  */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
-  RCC_OscInitStruct.HSIState = RCC_HSI_ON;
-  RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
-  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
-  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
-  RCC_OscInitStruct.PLL.PLLM = 1;
-  RCC_OscInitStruct.PLL.PLLN = 9;
-  RCC_OscInitStruct.PLL.PLLQ = RCC_PLLQ_DIV2;
-  RCC_OscInitStruct.PLL.PLLR = RCC_PLLR_DIV2;
-  if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
-  {
-    Error_Handler();
-  }
+	/** Initializes the RCC Oscillators according to the specified parameters
+	 * in the RCC_OscInitTypeDef structure.
+	 */
+	RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
+	RCC_OscInitStruct.HSIState = RCC_HSI_ON;
+	RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
+	RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
+	RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
+	RCC_OscInitStruct.PLL.PLLM = 2;
+	RCC_OscInitStruct.PLL.PLLN = 8;
+	RCC_OscInitStruct.PLL.PLLQ = RCC_PLLQ_DIV2;
+	RCC_OscInitStruct.PLL.PLLR = RCC_PLLR_DIV8;
+	if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK) {
+		Error_Handler();
+	}
 
-  /** Initializes the CPU, AHB and APB buses clocks
-  */
-  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
-                              |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
-  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
-  RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV2;
-  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
-  RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
+	/** Initializes the CPU, AHB and APB buses clocks
+	 */
+	RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_SYSCLK
+			| RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2;
+	RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
+	RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV2;
+	RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
+	RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK)
-  {
-    Error_Handler();
-  }
+	if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_0) != HAL_OK) {
+		Error_Handler();
+	}
 }
 
 /* USER CODE BEGIN 4 */
@@ -217,13 +259,25 @@ int _write(int file, char *ptr, int len) {
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 	if (GPIO_Pin == BTN_ADD_Pin) //subtract pressed
-			{
+	{
 		printf("ADD \r\n");
 	} else if (GPIO_Pin == BTN_SUB_Pin) //subtract
-			{
+	{
 		printf("SUB \r\n");
 	} else {
 		printf("other exti\r\n");
+	}
+}
+
+uint8_t EpaperGetPixelCenter(char *string, sFONT *font) {
+	uint8_t len = strlen(string);
+	printf("LEN:%d",len);
+	if (len % 2 == 0) {
+		return (EPD_1IN02_HEIGHT / 2) - ((len / 2) * font->Width);
+	}
+	else
+	{
+		return (((EPD_1IN02_HEIGHT / 2) - ((len / 2) * font->Width)) - (font->Width / 2));
 	}
 }
 
@@ -255,13 +309,13 @@ void ReadI2CLine() {
 			line_shorts += 1;
 			printf("SHORT FOUND\n");
 		}
-		HAL_Delay(100);
+		HAL_Delay(50);
 		counter += 1;
 	}
 
 	if (line_shorts >= 6) {
 		printf("I2C line is DOWN, DEINIT GPIO\r\n");
-		EXTERNAL_I2C_SHORT = 1;
+		IS_EXTERNAL_I2C_SHORT = 1;
 		HAL_GPIO_DeInit(GPIOC, GPIO_PIN_0);
 		HAL_GPIO_DeInit(GPIOC, GPIO_PIN_1);
 	}
@@ -269,17 +323,16 @@ void ReadI2CLine() {
 /* USER CODE END 4 */
 
 /**
-  * @brief  This function is executed in case of error occurrence.
-  * @retval None
-  */
-void Error_Handler(void)
-{
-  /* USER CODE BEGIN Error_Handler_Debug */
+ * @brief  This function is executed in case of error occurrence.
+ * @retval None
+ */
+void Error_Handler(void) {
+	/* USER CODE BEGIN Error_Handler_Debug */
 	/* User can add his own implementation to report the HAL error return state */
 	__disable_irq();
 	while (1) {
 	}
-  /* USER CODE END Error_Handler_Debug */
+	/* USER CODE END Error_Handler_Debug */
 }
 #ifdef USE_FULL_ASSERT
 /**

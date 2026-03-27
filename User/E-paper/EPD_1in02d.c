@@ -161,12 +161,11 @@ void EPD_1IN02_WaitUntilIdle(void)
 	unsigned char busy;
 	do
 	{
-		EPD_1IN02_SendCommand(0x71);
 		busy = DEV_Digital_Read(EPD_BUSY_PIN);
 		busy =!(busy & 0x01);        
 	}
 	while(busy);
-	DEV_Delay_ms(800);                       
+	DEV_Delay_ms(100);
 }
 
 
