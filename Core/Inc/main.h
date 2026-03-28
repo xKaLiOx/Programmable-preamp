@@ -36,6 +36,10 @@ extern "C" {
 
 /* Exported types ------------------------------------------------------------*/
 /* USER CODE BEGIN ET */
+
+#define PROGRAMMING_VALUE_SIZE 4 // FLASH DWORD programming only (4x16b)
+#define DAC_FLASH_MAX_SIZE 96
+
 typedef enum
 {
 	CALIBRATION,
@@ -48,11 +52,18 @@ typedef enum
 	AWAKE
 } MCU_MODE;
 
+typedef struct {
+	uint64_t MAGIC_NUMBER; //empty data or not
+	uint16_t CALIBRATION_DATA[DAC_FLASH_MAX_SIZE]; //DAC values to send, 0.5 dB step size
+} DAC_FLASH_DATA;
+
+typedef struct {
+	uint16_t DAC_VALUES[PROGRAMMING_VALUE_SIZE];
+} DAC_FLASH_DWORD;
 /* USER CODE END ET */
 
 /* Exported constants --------------------------------------------------------*/
 /* USER CODE BEGIN EC */
-
 /* USER CODE END EC */
 
 /* Exported macro ------------------------------------------------------------*/

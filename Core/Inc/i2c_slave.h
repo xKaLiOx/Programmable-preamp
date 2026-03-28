@@ -1,0 +1,28 @@
+/*
+ * i2c_slave.h
+ *
+ *  Created on: 5 Mar 2026
+ *      Author: Linas
+ */
+
+#ifndef APPLICATION_USER_CORE_I2C_SLAVE_H_
+#define APPLICATION_USER_CORE_I2C_SLAVE_H_
+
+#define RxSize 10
+#define TxSize 2
+// CONFIGURATION 1 BYTE / 2 DAC BYTE / 1 INDEX POSITION
+
+typedef enum
+{
+	ERASE_ALL,
+	FLASHING_DAC,
+	SEND_TO_DAC,
+	RETRIEVE_FROM_FLASH,
+	FLASHING_MAGIC_NUMBER
+} CONFIGURATION_BYTE;
+
+extern uint8_t I2C_CMD_REQUEST;
+extern CONFIGURATION_BYTE CONFIG_SETTING;
+extern uint8_t DAC_RDY_FLAG;
+
+#endif /* APPLICATION_USER_CORE_I2C_SLAVE_H_ */

@@ -5,6 +5,14 @@ import usb.util
 import numpy as np
 import time
 
+STM32_ADDR = 0x25
+
+ERASE_ALL=0x00
+FLASHING_DAC=0x01
+SEND_TO_DAC=0x02
+RETRIEVE_FROM_FLASH=0x03
+FLASHING_MAGIC_NUMBER=0x04
+
 """
 @brief USB Control Commands
 """
@@ -98,7 +106,7 @@ class CH341():
         cnt = self.dev.write(self.EP_OUT, cmd)
         if (cnt != len(cmd)):
             raise ConnectionError("Failed to issue I2C Set Speed Command")
-        print("Speed set to "+ speed)
+        print("Speed set to "+ str(speed))
 
 
     """
@@ -317,7 +325,7 @@ class CH341():
             data = [data]
 
         # total_len = Address (1) + Command Byte (1) + Data (N)
-        total_len = 1 + 1 + 1 + len(data)
+        total_len =  1+ 1 + 1 + len(data)
         
         if total_len > 32:
             raise ValueError("CH341 cannot send more than 32 bytes in one packet")
@@ -330,7 +338,7 @@ class CH341():
             command & 0xFF,      # Byte 2: Command
             index & 0xFF,       # Byte 3: Index
         ]
-        
+
         # Bytes 4 to N: Data
         for b in data:
             cmd.append(b & 0xFF)
@@ -403,13 +411,17 @@ if __name__ == "__main__":
         i2c.set_speed(20) # 20 khz slow i2c
         
         #packet of stm32 flash is 64 bits, 16 bits for one DAC_index, 4, so it is 16 bit values clear
-        data = [0xFA,0xFC,0xFF,0xFF,0xFF,0xFF,0xFB,0xFE]
+        # ERASE_ALL=0x00
+        # FLASHING_DAC=0x01
+        # SEND_TO_DAC=0x02
+        # RETRIEVE_FROM_FLASH=0x03
+        # FLASHING_MAGIC_NUMBER=0x04
+        data = [1,2,4,8,16,32,64,128]
+        # i2c.stm32_send_frame(STM32_ADDR,FLASHING_DAC,0x01,data)
         
-        
-        dac_value = [4052, 210, 1234, 531, 1456, 3214, 123] #12 bit dac value  
-        dac_value_np = np.uint16(dac_value) #12 bit dac value
-        dac_value_converted = np.uint16(dac_value).tobytes() # Convert to 2 bytes
-        
+        # dac_value = [4052, 210, 1234, 531, 1456, 3214, 123] #12 bit dac value  
+        # dac_value_np = np.uint16(dac_value) #12 bit dac value
+        # dac_value_converted = np.uint16(dac_value).tobytes() # Convert to 2 bytes
         
     except ConnectionError as err:
         print(err)
