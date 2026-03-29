@@ -2,10 +2,15 @@
 
 void MCP4725_Init(I2C_HandleTypeDef *hi2c) {
 	uint8_t call = MCP4725_GENERAL_RESET_COMMAND;
-	if (HAL_I2C_IsDeviceReady(hi2c, MCP4725_DEFAULT_ADDRESS, 2,
-	MCP4725_I2C_TIMEOUT)) {
+	if (HAL_I2C_IsDeviceReady(hi2c, MCP4725_DEFAULT_ADDRESS, 5,
+	MCP4725_I2C_TIMEOUT) == HAL_OK) {
 		HAL_I2C_Master_Transmit(hi2c, MCP4725_GENERAL_CALL_ADDRESS, &call, 1,
 		MCP4725_I2C_TIMEOUT);
+		printf("MCP4725 is ready\n");
+	}
+	else
+	{
+		printf("MCP4725 not found\n");
 	}
 }
 void MCP4725_ReadRegister(I2C_HandleTypeDef *hi2c, MCP4725_READ_REG_DATA *registers) // returns the current DAC value (0-4095)
@@ -47,7 +52,7 @@ HAL_StatusTypeDef MCP4725_SetValue(I2C_HandleTypeDef *hi2c, uint16_t value,
 		return HAL_I2C_Master_Transmit(hi2c, MCP4725_DEFAULT_ADDRESS, buffer, 2,
 				MCP4725_I2C_TIMEOUT);
 	}
-	case (MCP4725_REGISTER_MODE):
+	case (MCP4725_REGISTER_MODE)://same as eeprom
 	case (MCP4725_EEPROM_MODE): {
 		buffer[0] = mode | (power << 1);
 		value = (value << 4); //12 bits shifted

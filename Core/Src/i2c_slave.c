@@ -10,20 +10,21 @@
 #include <stdio.h>
 
 extern I2C_HandleTypeDef hi2c3;
-extern uint8_t DAC_INDEX;
+extern uint8_t FLASH_DAC_INDEX;
 extern DAC_FLASH_DWORD DAC_DATA;
+extern uint16_t AMP_CTRL_DAC_VALUE;
 uint8_t count = 0;
 uint8_t RxData[RxSize];
 uint8_t TxData[TxSize];
 
 void HAL_I2C_ListenCpltCallback(I2C_HandleTypeDef *hi2c) {
 	//wait for MCU to listen again
-    __HAL_I2C_CLEAR_FLAG(hi2c, I2C_FLAG_STOPF);
+	__HAL_I2C_CLEAR_FLAG(hi2c, I2C_FLAG_STOPF);
 
-    // Also clear OVR if set
-    if (__HAL_I2C_GET_FLAG(hi2c, I2C_FLAG_OVR)) {
-        __HAL_I2C_CLEAR_FLAG(hi2c, I2C_FLAG_OVR);
-    }
+	// Also clear OVR if set
+	if (__HAL_I2C_GET_FLAG(hi2c, I2C_FLAG_OVR)) {
+		__HAL_I2C_CLEAR_FLAG(hi2c, I2C_FLAG_OVR);
+	}
 
 	HAL_I2C_EnableListen_IT(hi2c);
 }
@@ -36,7 +37,7 @@ void HAL_I2C_AddrCallback(I2C_HandleTypeDef *hi2c, uint8_t TransferDirection,
 	} else {
 		//format the data to send
 		HAL_I2C_Slave_Seq_Transmit_IT(hi2c, &DAC_RDY_FLAG, 1,
-				I2C_FIRST_AND_LAST_FRAME);
+		I2C_FIRST_AND_LAST_FRAME);
 	}
 }
 
@@ -44,16 +45,18 @@ void HAL_I2C_SlaveRxCpltCallback(I2C_HandleTypeDef *hi2c) {
 	if (hi2c->Instance == I2C3) {
 		I2C_CMD_REQUEST = 1;
 		CONFIG_SETTING = (CONFIGURATION_BYTE) RxData[0];
-		if (RxData[1] >= 1) {
-			DAC_INDEX = RxData[1];
-		}
-
-		//copy data to the block
 		//0th configuration, 1st index, 2-10 chunk data
-		for (uint8_t i = 2, x = 0; i < 10; i = i + 2, x++) {
-			DAC_DATA.DAC_VALUES[x] = (RxData[i + 1] << 8) | RxData[i];
-		}
+		if (RxData[1] == 1) { //get index of 64bit value to flash the program
+			FLASH_DAC_INDEX = RxData[1];
 
+			//copy data to the block
+			for (uint8_t i = 2, x = 0; i < 10; i = i + 2, x++) {
+				DAC_DATA.DAC_VALUES[x] = (RxData[i + 1] << 8) | RxData[i];
+			}
+		} else if (RxData[1] == 2) //get the value and send to dac
+			{
+			AMP_CTRL_DAC_VALUE = ((uint16_t) (RxData[2] | (RxData[3] << 8))) & 0xFFF;//shift to make 16bit and mask until 4095
+			}
 	}
 }
 
@@ -73,8 +76,8 @@ void HAL_I2C_ErrorCallback(I2C_HandleTypeDef *hi2c) {
 			return;
 		}
 		if (error == HAL_I2C_ERROR_OVR) {
-		    __HAL_I2C_CLEAR_FLAG(hi2c, I2C_FLAG_OVR);
-		    __HAL_I2C_CLEAR_FLAG(hi2c, I2C_FLAG_STOPF);
+			__HAL_I2C_CLEAR_FLAG(hi2c, I2C_FLAG_OVR);
+			__HAL_I2C_CLEAR_FLAG(hi2c, I2C_FLAG_STOPF);
 			__HAL_I2C_DISABLE(hi2c);
 			__HAL_I2C_ENABLE(hi2c);
 		}

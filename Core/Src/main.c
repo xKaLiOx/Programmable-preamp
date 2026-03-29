@@ -28,6 +28,7 @@
 #include "MCP4725.h"
 #include "EPD_1in02d.h"
 #include <string.h>
+#include <stdio.h>
 #include "GUI_Paint.h"
 #include "i2c_slave.h"
 
@@ -72,7 +73,8 @@ uint8_t HAS_CALIBRATION_VALUES = 0;
  */
 
 DAC_FLASH_DATA DAC_CALIBRATION_DATA;
-uint8_t DAC_INDEX = 0; //from i2c write the chunk to
+uint8_t FLASH_DAC_INDEX = 0; //from i2c write the chunk to
+uint16_t AMP_CTRL_DAC_VALUE = 0;//0-4095 DAC values
 DAC_FLASH_DWORD DAC_DATA;
 
 uint8_t I2C_RESET;
@@ -139,66 +141,71 @@ int main(void)
 
 	ReadI2CLine();
 
+	//Init MCP4725 DAC
+	MCP4725_Init(&hi2c1);
+	HAL_Delay(100);
+	//set the eeprom at 0V and turn off the output for init protection
+	MCP4725_SetValue(&hi2c1, 0, MCP4725_EEPROM_MODE, MCP4725_POWER_DOWN_500KOHM);
 	//INIT e-paper
 	//dont turnoff e-paper as it sits at 2V and is screaming (higher current draw as well)
 
-	HAL_GPIO_WritePin(E_PWR_EN_GPIO_Port, E_PWR_EN_Pin, GPIO_PIN_RESET); //turn on power for E-paper (open drain setup, RESET pulls low to GND)
-
-	EPD_1IN02_Init();
-	EPD_1IN02_Clear();
-	DEV_Delay_ms(100);
-
-	Paint_NewImage(CurrentImage, EPD_1IN02_WIDTH, EPD_1IN02_HEIGHT, 270, WHITE);
-	Paint_NewImage(OldImage, EPD_1IN02_WIDTH, EPD_1IN02_HEIGHT, 270, WHITE);
-	Paint_SelectImage(OldImage);
-	Paint_Clear(WHITE);
-	Paint_SelectImage(CurrentImage);
-	Paint_Clear(WHITE);
-	//copy calibration data to struct if it exists in flash
-	DAC_FLASH_DATA *flash_ptr = (DAC_FLASH_DATA*) FLASH_USER_START_ADDR;
-	if (flash_ptr->MAGIC_NUMBER == FLASH_PAGE_NOT_EMPTY) {
-		//calibration data is flashed, copy to struct
-		HAS_CALIBRATION_VALUES = 1;
-		DAC_CALIBRATION_DATA = *flash_ptr;
-	}
-	//
-	if (!IS_EXTERNAL_I2C_SHORT) {
-		printf("\nCALIBRATION PROCEDURE\n");
-		MX_I2C3_Init();
-		MCU_STATE = CALIBRATION;
-
-		strcpy(text, "MODE");
-		E_paper_middle_pixel = EpaperGetPixelCenter(text, &Font24_Terminus);
-		Paint_DrawString_EN(E_paper_middle_pixel, 0, text, &Font24_Terminus,
-		BLACK, WHITE);
-
-		strcpy(text, "CALIBRATE");
-		E_paper_middle_pixel = EpaperGetPixelCenter(text,
-				&Font16_Terminus_normal);
-		Paint_DrawString_EN(E_paper_middle_pixel, 30, text,
-				&Font16_Terminus_normal, BLACK, WHITE);
-
-		//start I2C listening
-		printf("Started listening\n");
-		if (HAL_I2C_EnableListen_IT(&hi2c3) != HAL_OK) {
-			Error_Handler();
-		}
-	} else {
-		printf("I2C IS SHORTED/ NORMAL PROCEDURE\n");
-
-		strcpy(text, "MODE");
-		E_paper_middle_pixel = EpaperGetPixelCenter(text, &Font24_Terminus);
-		Paint_DrawString_EN(E_paper_middle_pixel, 0, text, &Font24_Terminus,
-		BLACK, WHITE);
-		strcpy(text, "NORMAL");
-		E_paper_middle_pixel = EpaperGetPixelCenter(text, &Font24_Terminus);
-		Paint_DrawString_EN(E_paper_middle_pixel, 30, text,
-				&Font16_Terminus_normal, BLACK, WHITE);
-	}
-
-	//turn off e-paper power after init
-	EPD_1IN02_Display(CurrentImage);
-	EPD_1IN02_Sleep();
+//	HAL_GPIO_WritePin(E_PWR_EN_GPIO_Port, E_PWR_EN_Pin, GPIO_PIN_RESET); //turn on power for E-paper (open drain setup, RESET pulls low to GND)
+//
+//	EPD_1IN02_Init();
+//	EPD_1IN02_Clear();
+//	DEV_Delay_ms(100);
+//
+//	Paint_NewImage(CurrentImage, EPD_1IN02_WIDTH, EPD_1IN02_HEIGHT, 270, WHITE);
+//	Paint_NewImage(OldImage, EPD_1IN02_WIDTH, EPD_1IN02_HEIGHT, 270, WHITE);
+//	Paint_SelectImage(OldImage);
+//	Paint_Clear(WHITE);
+//	Paint_SelectImage(CurrentImage);
+//	Paint_Clear(WHITE);
+//	//copy calibration data to struct if it exists in flash
+//	DAC_FLASH_DATA *flash_ptr = (DAC_FLASH_DATA*) FLASH_USER_START_ADDR;
+//	if (flash_ptr->MAGIC_NUMBER == FLASH_PAGE_NOT_EMPTY) {
+//		//calibration data is flashed, copy to struct
+//		HAS_CALIBRATION_VALUES = 1;
+//		DAC_CALIBRATION_DATA = *flash_ptr;
+//	}
+//	//
+//	if (!IS_EXTERNAL_I2C_SHORT) {
+//		printf("\nCALIBRATION PROCEDURE\n");
+//		MX_I2C3_Init();
+//		MCU_STATE = CALIBRATION;
+//
+//		strcpy(text, "MODE");
+//		E_paper_middle_pixel = EpaperGetPixelCenter(text, &Font24_Terminus);
+//		Paint_DrawString_EN(E_paper_middle_pixel, 0, text, &Font24_Terminus,
+//		BLACK, WHITE);
+//
+//		strcpy(text, "CALIBRATE");
+//		E_paper_middle_pixel = EpaperGetPixelCenter(text,
+//				&Font16_Terminus_normal);
+//		Paint_DrawString_EN(E_paper_middle_pixel, 30, text,
+//				&Font16_Terminus_normal, BLACK, WHITE);
+//
+//		//start I2C listening
+//		printf("Started listening\n");
+//		if (HAL_I2C_EnableListen_IT(&hi2c3) != HAL_OK) {
+//			Error_Handler();
+//		}
+//	} else {
+//		printf("I2C IS SHORTED/ NORMAL PROCEDURE\n");
+//
+//		strcpy(text, "MODE");
+//		E_paper_middle_pixel = EpaperGetPixelCenter(text, &Font24_Terminus);
+//		Paint_DrawString_EN(E_paper_middle_pixel, 0, text, &Font24_Terminus,
+//		BLACK, WHITE);
+//		strcpy(text, "NORMAL");
+//		E_paper_middle_pixel = EpaperGetPixelCenter(text, &Font24_Terminus);
+//		Paint_DrawString_EN(E_paper_middle_pixel, 30, text,
+//				&Font16_Terminus_normal, BLACK, WHITE);
+//	}
+//
+//	//turn off e-paper power after init
+//	EPD_1IN02_Display(CurrentImage);
+//	EPD_1IN02_Sleep();
 	//partial init time update
 
 //	EPD_1IN02_Part_Init();
@@ -221,7 +228,7 @@ int main(void)
 					DAC_DATA.DAC_VALUES[i] = (uint16_t) (FLASH_PAGE_NOT_EMPTY
 							>> (16 * (i - 1)));
 				}
-				FlashProgramLocation(&DAC_DATA, DAC_INDEX, 1);
+				FlashProgramLocation(&DAC_DATA, FLASH_DAC_INDEX, 1);
 				printf("MAGIC NUMBER INSERTED\n");
 				break;
 			}
@@ -232,19 +239,17 @@ int main(void)
 			}
 			case (FLASHING_DAC): {
 				printf("FLASHING DWORD\n");
-				FlashProgramLocation(&DAC_DATA, DAC_INDEX, 0);
+				FlashProgramLocation(&DAC_DATA, FLASH_DAC_INDEX, 0);
 				break;
 			}
 			case (SEND_TO_DAC): { //sending commands directly to DAC
 				if (DAC_DATA.DAC_VALUES[0] < 4096) {
 					//wakeup
-
 					//send
-					//HAL_I2C_Master_Transmit(hi2c, DevAddress, pData, Size, Timeout);
-
+					MCP4725_SetValue(&hi2c1,AMP_CTRL_DAC_VALUE, MCP4725_EEPROM_MODE, MCP4725_POWER_DOWN_500KOHM);
 					//standby
 				}
-				printf("DAC SEND\n");
+				printf("TO DAC SENT VALUE:%d\n",AMP_CTRL_DAC_VALUE);
 
 				break;
 			}

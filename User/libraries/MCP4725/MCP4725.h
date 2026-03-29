@@ -10,9 +10,9 @@
 // 0b1100000 A2 A1 hard wired, A0 configurable
 #ifdef MCP4725_A0_PIN
 #if MCP4725_A0_PIN == 0
-#define MCP4725_DEFAULT_ADDRESS 0x60
+#define MCP4725_DEFAULT_ADDRESS (0x60 << 1)
 #elif MCP4725_A0_PIN == 1
-#define MCP4725_DEFAULT_ADDRESS 0x61
+#define MCP4725_DEFAULT_ADDRESS (0x61 << 1)
 #else
 #error "Invalid A0 pin state. Must be 0 or 1."
 #endif
@@ -51,7 +51,7 @@ typedef struct
 #define MCP4725_FAST_MODE 0x00 // change without EEPROM write
 #define MCP4725_DAC_AND_EEPROM 0x40 // change with EEPROM write
 
-#define MCP4725_I2C_TIMEOUT 10
+#define MCP4725_I2C_TIMEOUT 30
 #define MCP4725_MAX_VALUE 4095
 
 void MCP4725_Init(I2C_HandleTypeDef *hi2c);
